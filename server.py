@@ -2,7 +2,7 @@ from mcp.server.fastmcp import FastMCP
 import requests
 
 INVENIO_API_URL = "https://sandbox-cds-rdm.web.cern.ch/api"
-INVENIO_TOKEN = "eHvDeB4sjlW99nRZEwblBcvU3NY0IlwzdxK1P6Jr5v2PvPWqv6sDALOC484Qq"  # ideally loaded from env
+INVENIO_TOKEN = "eHvDeB4sjlW99nRZEwblBcvU3NY0IlwzdxK1P6Jr5v2PvPWqv6sDALOC484Q"  # ideally loaded from env
 DRAFT_ID = None
 RESOURCE_TYPES = [
     "thesis",
