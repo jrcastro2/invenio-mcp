@@ -1,5 +1,6 @@
 from mcp.server.fastmcp import FastMCP
 import requests
+from enum import Enum
 
 INVENIO_API_URL = "https://sandbox-cds-rdm.web.cern.ch/api"
 INVENIO_TOKEN = "ZldKFGAWAWqoPaDJDWGoWCw6JDRfWDiobBH52HoRaQf35tXuctImnXwl6hG2"  # ideally loaded from env
@@ -102,37 +103,118 @@ def set_publication_date(publication_date: str, draft_id: str = None) -> str:
     response.raise_for_status()
     return f"Publication date set to '{publication_date}' for draft {draft_id}"
 
+class ResourceType(str, Enum):
+    PUBLICATION = "publication"
+    PUBLICATION_ANNOTATIONCOLLECTION = "publication-annotationcollection"
+    PUBLICATION_BOOK = "publication-book"
+    PUBLICATION_SECTION = "publication-section"
+    PUBLICATION_CONFERENCEPAPER = "publication-conferencepaper"
+    PUBLICATION_CONFERENCEPROCEEDING = "publication-conferenceproceeding"
+    PUBLICATION_DATAMANAGEMENTPLAN = "publication-datamanagementplan"
+    PUBLICATION_JOURNAL = "publication-journal"
+    PUBLICATION_ARTICLE = "publication-article"
+    PUBLICATION_PATENT = "publication-patent"
+    PUBLICATION_PEERREVIEW = "publication-peerreview"
+    PUBLICATION_PREPRINT = "publication-preprint"
+    PUBLICATION_DELIVERABLE = "publication-deliverable"
+    PUBLICATION_MILESTONE = "publication-milestone"
+    PUBLICATION_PROPOSAL = "publication-proposal"
+    PUBLICATION_REPORT = "publication-report"
+    PUBLICATION_SOFTWAREDOCUMENTATION = "publication-softwaredocumentation"
+    PUBLICATION_TAXONOMICTREATMENT = "publication-taxonomictreatment"
+    PUBLICATION_TECHNICALNOTE = "publication-technicalnote"
+    PUBLICATION_THESIS = "publication-thesis"
+    PUBLICATION_WORKINGPAPER = "publication-workingpaper"
+    PUBLICATION_DATAPAPER = "publication-datapaper"
+    PUBLICATION_DISSERTATION = "publication-dissertation"
+    PUBLICATION_STANDARD = "publication-standard"
+    PUBLICATION_OTHER = "publication-other"
+    POSTER = "poster"
+    PRESENTATION = "presentation"
+    EVENT = "event"
+    DATASET = "dataset"
+    IMAGE = "image"
+    IMAGE_FIGURE = "image-figure"
+    IMAGE_PLOT = "image-plot"
+    IMAGE_DRAWING = "image-drawing"
+    IMAGE_DIAGRAM = "image-diagram"
+    IMAGE_PHOTO = "image-photo"
+    IMAGE_OTHER = "image-other"
+    MODEL = "model"
+    VIDEO = "video"
+    AUDIO = "audio"
+    SOFTWARE = "software"
+    SOFTWARE_COMPUTATIONALNOTEBOOK = "software-computationalnotebook"
+    LESSON = "lesson"
+    OTHER = "other"
+    PHYSICALOBJECT = "physicalobject"
+    WORKFLOW = "workflow"
+
+# # Uncomment this function if you want to use a query string for resource type (not working on cds-rdm sandbox, vocab are restrcited AFAIK)
+# def set_resource_type(resource_type: str, draft_id: str) -> str:
+#     """Set the resource type of a draft based on a query string."""
+#     if not draft_id:
+#         draft_id = DRAFT_ID
+
+#     # Validate resource type by querying the vocabulary
+#     response = requests.get(
+#         f"{INVENIO_API_URL}/vocabularies/resourcetypes?q={resource_type}",
+#         headers=get_headers()
+#     )
+#     response.raise_for_status()
+#     resource_types = response.json()["hits"]["hits"]
+
+#     if not resource_types:
+#         raise ValueError(f"MCP Error: No matching resource type found for '{resource_type}'")
+
+#     # Use the first match
+#     matched_resource_type = resource_types[0]["id"]
+
+#     # Fetch the existing draft data
+#     draft_response = requests.get(
+#         f"{INVENIO_API_URL}/records/{draft_id}/draft",
+#         headers=get_headers()
+#     )
+#     draft_response.raise_for_status()
+#     draft_data = draft_response.json()
+
+#     # Update the resource type while preserving other metadata
+#     draft_data["metadata"]["resource_type"] = {"id": matched_resource_type}
+
+#     # Send the updated draft data
+#     response = requests.put(
+#         f"{INVENIO_API_URL}/records/{draft_id}/draft",
+#         json=draft_data,
+#         headers=get_headers()
+#     )
+#     response.raise_for_status()
+
+#     return f"Resource type set to '{matched_resource_type}' for draft {draft_id}"
+
+
+@mcp.tool()
 def set_resource_type(resource_type: str, draft_id: str) -> str:
-    """Set the resource type of a draft based on a query string."""
+    """Set the resource type using predefined enum."""
     if not draft_id:
         draft_id = DRAFT_ID
 
-    # Validate resource type by querying the vocabulary
-    response = requests.get(
-        f"{INVENIO_API_URL}/vocabularies/resourcetypes?q={resource_type}",
-        headers=get_headers()
-    )
-    response.raise_for_status()
-    resource_types = response.json()["hits"]["hits"]
-
-    if not resource_types:
-        raise ValueError(f"MCP Error: No matching resource type found for '{resource_type}'")
-
-    # Use the first match
-    matched_resource_type = resource_types[0]["id"]
-
-    # Fetch the existing draft data
+    # Fetch draft
     draft_response = requests.get(
         f"{INVENIO_API_URL}/records/{draft_id}/draft",
         headers=get_headers()
     )
     draft_response.raise_for_status()
     draft_data = draft_response.json()
+    # Validate resource type
+    try:
+        resource_type = ResourceType(resource_type)
+    except ValueError:
+        raise ValueError(f"MCP Error: Invalid resource type '{resource_type}'. Must be one of {list(ResourceType)}")
+    
+    # Update resource type
+    draft_data["metadata"]["resource_type"] = {"id": resource_type.value}
 
-    # Update the resource type while preserving other metadata
-    draft_data["metadata"]["resource_type"] = {"id": matched_resource_type}
-
-    # Send the updated draft data
+    # Push update
     response = requests.put(
         f"{INVENIO_API_URL}/records/{draft_id}/draft",
         json=draft_data,
@@ -140,7 +222,7 @@ def set_resource_type(resource_type: str, draft_id: str) -> str:
     )
     response.raise_for_status()
 
-    return f"Resource type set to '{matched_resource_type}' for draft {draft_id}"
+    return f"Resource type set to '{resource_type.value}' for draft {draft_id}"
 
 @mcp.tool()
 def set_creators(creators: list[dict], draft_id: str) -> str:
