@@ -2,7 +2,7 @@ from mcp.server.fastmcp import FastMCP
 import requests
 
 INVENIO_API_URL = "https://sandbox-cds-rdm.web.cern.ch/api"
-INVENIO_TOKEN = "eHvDeB4sjlW99nRZEwblBcvU3NY0IlwzdxK1P6Jr5v2PvPWqv6sDALOC484Q"  # ideally loaded from env
+INVENIO_TOKEN = "eHvDeB4sjlW99nRZEwblBcvU3NY0IlwzdxK1P6Jr5v2PvPWqv6sDALOC484Qq"  # ideally loaded from env
 DRAFT_ID = None
 RESOURCE_TYPES = [
     "thesis",
@@ -54,8 +54,47 @@ def set_title(title: str, draft_id: str) -> str:
     response.raise_for_status()
     return f"Title set to '{title}' for draft {draft_id}"
 
+@mcp.tool()
+def set_description(description: str, draft_id: str) -> str:
+    """Set the description of a draft"""
+    if not draft_id:
+        draft_id = DRAFT_ID
+    draft_response = requests.get(
+        f"{INVENIO_API_URL}/records/{draft_id}/draft",
+        headers=get_headers()
+    )
+    draft_response.raise_for_status()
+    metadata = draft_response.json()["metadata"]
+    metadata["description"] = description
 
+    response = requests.put(
+        f"{INVENIO_API_URL}/records/{draft_id}/draft",
+        json={"metadata": metadata},
+        headers=get_headers()
+    )
+    response.raise_for_status()
+    return f"Description set to '{description}' for draft {draft_id}"
 
+@mcp.tool()
+def set_publication_date(publication_date: str, draft_id: str = None) -> str:
+    """Set the publication date of a draft"""
+    if not draft_id:
+        draft_id = DRAFT_ID
+    draft_response = requests.get(
+        f"{INVENIO_API_URL}/records/{draft_id}/draft",
+        headers=get_headers()
+    )
+    draft_response.raise_for_status()
+    metadata = draft_response.json()["metadata"]
+    metadata["publication_date"] = publication_date
+
+    response = requests.put(
+        f"{INVENIO_API_URL}/records/{draft_id}/draft",
+        json={"metadata": metadata},
+        headers=get_headers()
+    )
+    response.raise_for_status()
+    return f"Publication date set to '{publication_date}' for draft {draft_id}"
 
 
 @mcp.tool()
