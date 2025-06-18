@@ -1,15 +1,29 @@
-from mcp.server.fastmcp import FastMCP
-import requests
+#!/usr/bin/env -S uv run
+# /// script
+# requires-python = ">=3.13"
+# dependencies = [
+#   "mcp[cli]",
+#   "requests",
+# ]
+# ///
+import os
 from enum import Enum
 
-INVENIO_API_URL = "https://sandbox-cds-rdm.web.cern.ch/api"
-INVENIO_TOKEN = "ZldKFGAWAWqoPaDJDWGoWCw6JDRfWDiobBH52HoRaQf35tXuctImnXwl6hG2"  # ideally loaded from env
-DRAFT_ID = None
+import requests
+from mcp.server.fastmcp import FastMCP
+
+INVENIO_API_URL = os.getenv("INVENIO_URL", "https://sandbox-cds-rdm.web.cern.ch/api")
+INVENIO_TOKEN = os.getenv("INVENIO_TOKEN", "<or-your-token-here>")
 
 mcp = FastMCP("InvenioRDM MCP Server")
 
+
 def get_headers():
-    return {"Authorization": f"Bearer {INVENIO_TOKEN}", "cookie": "session=1231dsa123dsa"}
+    return {
+        "Authorization": f"Bearer {INVENIO_TOKEN}",
+        "cookie": "session=1231dsa123dsa",
+    }
+
 
 @mcp.tool()
 def get_records() -> list:
@@ -18,33 +32,24 @@ def get_records() -> list:
     response.raise_for_status()
     return response.json()["hits"]["hits"]
 
-@mcp.tool()
-def set_draft_id(draft_id: str) -> str:
-    """Set the draft ID for subsequent operations"""
-    DRAFT_ID = draft_id
-    return f"Draft ID set to {DRAFT_ID}"
 
 @mcp.tool()
 def create_draft() -> str:
     """Create a new empty draft in InvenioRDM"""
     response = requests.post(
-        f"{INVENIO_API_URL}/records",
-        json={},
-        headers=get_headers()
+        f"{INVENIO_API_URL}/records", json={}, headers=get_headers()
     )
     response.raise_for_status()
     record = response.json()
-    return record["links"]["self"]
+    return f"Draft {record['id']} created at {record['links']['self_html']}"
+
 
 @mcp.tool()
 def set_title(title: str, draft_id: str) -> str:
     """Set the title of a draft"""
-    if not draft_id:
-        draft_id = DRAFT_ID
     # Fetch the existing draft data
     draft_response = requests.get(
-        f"{INVENIO_API_URL}/records/{draft_id}/draft",
-        headers=get_headers()
+        f"{INVENIO_API_URL}/records/{draft_id}/draft", headers=get_headers()
     )
     draft_response.raise_for_status()
     draft_data = draft_response.json()
@@ -56,19 +61,17 @@ def set_title(title: str, draft_id: str) -> str:
     response = requests.put(
         f"{INVENIO_API_URL}/records/{draft_id}/draft",
         json=draft_data,
-        headers=get_headers()
+        headers=get_headers(),
     )
     response.raise_for_status()
     return f"Title set to '{title}' for draft {draft_id}"
 
+
 @mcp.tool()
 def set_description(description: str, draft_id: str) -> str:
     """Set the description of a draft"""
-    if not draft_id:
-        draft_id = DRAFT_ID
     draft_response = requests.get(
-        f"{INVENIO_API_URL}/records/{draft_id}/draft",
-        headers=get_headers()
+        f"{INVENIO_API_URL}/records/{draft_id}/draft", headers=get_headers()
     )
     draft_response.raise_for_status()
     metadata = draft_response.json()["metadata"]
@@ -77,19 +80,17 @@ def set_description(description: str, draft_id: str) -> str:
     response = requests.put(
         f"{INVENIO_API_URL}/records/{draft_id}/draft",
         json={"metadata": metadata},
-        headers=get_headers()
+        headers=get_headers(),
     )
     response.raise_for_status()
     return f"Description set to '{description}' for draft {draft_id}"
 
+
 @mcp.tool()
 def set_publication_date(publication_date: str, draft_id: str = None) -> str:
-    """Set the publication date of a draft"""
-    if not draft_id:
-        draft_id = DRAFT_ID
+    """Set the publication date of a draft."""
     draft_response = requests.get(
-        f"{INVENIO_API_URL}/records/{draft_id}/draft",
-        headers=get_headers()
+        f"{INVENIO_API_URL}/records/{draft_id}/draft", headers=get_headers()
     )
     draft_response.raise_for_status()
     metadata = draft_response.json()["metadata"]
@@ -98,64 +99,39 @@ def set_publication_date(publication_date: str, draft_id: str = None) -> str:
     response = requests.put(
         f"{INVENIO_API_URL}/records/{draft_id}/draft",
         json={"metadata": metadata},
-        headers=get_headers()
+        headers=get_headers(),
     )
     response.raise_for_status()
     return f"Publication date set to '{publication_date}' for draft {draft_id}"
 
+
 class ResourceType(str, Enum):
     PUBLICATION = "publication"
-    PUBLICATION_ANNOTATIONCOLLECTION = "publication-annotationcollection"
     PUBLICATION_BOOK = "publication-book"
-    PUBLICATION_SECTION = "publication-section"
     PUBLICATION_CONFERENCEPAPER = "publication-conferencepaper"
     PUBLICATION_CONFERENCEPROCEEDING = "publication-conferenceproceeding"
-    PUBLICATION_DATAMANAGEMENTPLAN = "publication-datamanagementplan"
-    PUBLICATION_JOURNAL = "publication-journal"
     PUBLICATION_ARTICLE = "publication-article"
-    PUBLICATION_PATENT = "publication-patent"
-    PUBLICATION_PEERREVIEW = "publication-peerreview"
     PUBLICATION_PREPRINT = "publication-preprint"
-    PUBLICATION_DELIVERABLE = "publication-deliverable"
-    PUBLICATION_MILESTONE = "publication-milestone"
-    PUBLICATION_PROPOSAL = "publication-proposal"
     PUBLICATION_REPORT = "publication-report"
-    PUBLICATION_SOFTWAREDOCUMENTATION = "publication-softwaredocumentation"
-    PUBLICATION_TAXONOMICTREATMENT = "publication-taxonomictreatment"
-    PUBLICATION_TECHNICALNOTE = "publication-technicalnote"
     PUBLICATION_THESIS = "publication-thesis"
     PUBLICATION_WORKINGPAPER = "publication-workingpaper"
     PUBLICATION_DATAPAPER = "publication-datapaper"
     PUBLICATION_DISSERTATION = "publication-dissertation"
-    PUBLICATION_STANDARD = "publication-standard"
-    PUBLICATION_OTHER = "publication-other"
     POSTER = "poster"
     PRESENTATION = "presentation"
-    EVENT = "event"
     DATASET = "dataset"
     IMAGE = "image"
     IMAGE_FIGURE = "image-figure"
-    IMAGE_PLOT = "image-plot"
-    IMAGE_DRAWING = "image-drawing"
-    IMAGE_DIAGRAM = "image-diagram"
     IMAGE_PHOTO = "image-photo"
-    IMAGE_OTHER = "image-other"
-    MODEL = "model"
     VIDEO = "video"
     AUDIO = "audio"
     SOFTWARE = "software"
-    SOFTWARE_COMPUTATIONALNOTEBOOK = "software-computationalnotebook"
-    LESSON = "lesson"
-    OTHER = "other"
-    PHYSICALOBJECT = "physicalobject"
     WORKFLOW = "workflow"
+
 
 # # Uncomment this function if you want to use a query string for resource type (not working on cds-rdm sandbox, vocab are restrcited AFAIK)
 # def set_resource_type(resource_type: str, draft_id: str) -> str:
 #     """Set the resource type of a draft based on a query string."""
-#     if not draft_id:
-#         draft_id = DRAFT_ID
-
 #     # Validate resource type by querying the vocabulary
 #     response = requests.get(
 #         f"{INVENIO_API_URL}/vocabularies/resourcetypes?q={resource_type}",
@@ -194,14 +170,34 @@ class ResourceType(str, Enum):
 
 @mcp.tool()
 def set_resource_type(resource_type: str, draft_id: str) -> str:
-    """Set the resource type using predefined enum."""
-    if not draft_id:
-        draft_id = DRAFT_ID
+    """Set the resource type using predefined enum.
 
+    Valid resource types:
+    - publication
+    - publication-book
+    - publication-conferencepaper
+    - publication-conferenceproceeding
+    - publication-article
+    - publication-preprint
+    - publication-report
+    - publication-thesis
+    - publication-workingpaper
+    - publication-datapaper
+    - publication-dissertation
+    - poster
+    - presentation
+    - dataset
+    - image
+    - image-figure
+    - image-photo
+    - video
+    - audio
+    - software
+    - workflow
+    """
     # Fetch draft
     draft_response = requests.get(
-        f"{INVENIO_API_URL}/records/{draft_id}/draft",
-        headers=get_headers()
+        f"{INVENIO_API_URL}/records/{draft_id}/draft", headers=get_headers()
     )
     draft_response.raise_for_status()
     draft_data = draft_response.json()
@@ -209,8 +205,10 @@ def set_resource_type(resource_type: str, draft_id: str) -> str:
     try:
         resource_type = ResourceType(resource_type)
     except ValueError:
-        raise ValueError(f"MCP Error: Invalid resource type '{resource_type}'. Must be one of {list(ResourceType)}")
-    
+        raise ValueError(
+            f"MCP Error: Invalid resource type '{resource_type}'. Must be one of {list(ResourceType)}"
+        )
+
     # Update resource type
     draft_data["metadata"]["resource_type"] = {"id": resource_type.value}
 
@@ -218,19 +216,21 @@ def set_resource_type(resource_type: str, draft_id: str) -> str:
     response = requests.put(
         f"{INVENIO_API_URL}/records/{draft_id}/draft",
         json=draft_data,
-        headers=get_headers()
+        headers=get_headers(),
     )
     response.raise_for_status()
 
     return f"Resource type set to '{resource_type.value}' for draft {draft_id}"
 
+
 @mcp.tool()
 def set_creators(creators: list[dict], draft_id: str) -> str:
-    """Simplified creators setter: expects name + optional ORCID."""
+    """Set the creators/authors of a draft.
 
-    if not draft_id:
-        draft_id = DRAFT_ID
-
+    Expects a list of dictionaries with:
+    - 'name' in a 'family_name, given_name' format (e.g. "Smith, John")
+    - optional 'orcid' key for ORCID identifiers (e.g. "0000-0001-2345-6789")
+    """
     parsed_creators = []
     for creator in creators:
         full_name = creator.get("name", "").strip()
@@ -249,20 +249,21 @@ def set_creators(creators: list[dict], draft_id: str) -> str:
         # Build identifiers list: ORCID is fully optional
         identifiers = [{"scheme": "orcid", "identifier": orcid}] if orcid else []
 
-        parsed_creators.append({
-            "person_or_org": {
-                "name": full_name,
-                "type": "personal",
-                "given_name": given_name,
-                "family_name": family_name,
-                "identifiers": identifiers
+        parsed_creators.append(
+            {
+                "person_or_org": {
+                    "name": full_name,
+                    "type": "personal",
+                    "given_name": given_name,
+                    "family_name": family_name,
+                    "identifiers": identifiers,
+                }
             }
-        })
+        )
 
     # Fetch draft
     draft_response = requests.get(
-        f"{INVENIO_API_URL}/records/{draft_id}/draft",
-        headers=get_headers()
+        f"{INVENIO_API_URL}/records/{draft_id}/draft", headers=get_headers()
     )
     draft_response.raise_for_status()
     draft_data = draft_response.json()
@@ -274,49 +275,54 @@ def set_creators(creators: list[dict], draft_id: str) -> str:
     response = requests.put(
         f"{INVENIO_API_URL}/records/{draft_id}/draft",
         json=draft_data,
-        headers=get_headers()
+        headers=get_headers(),
     )
     response.raise_for_status()
 
     return f"Creators set for draft {draft_id}"
 
-@mcp.tool()
-def upload_file(draft_id: str, file_path: str) -> str:
-    """Upload a file to an existing draft"""
-    # 1. Initialize file upload
-    filename = file_path.split("/")[-1]
-    init_response = requests.post(
-        f"{INVENIO_API_URL}/records/{draft_id}/files",
-        json={"key": filename},
-        headers=get_headers()
-    )
-    init_response.raise_for_status()
 
-    # 2. Upload content
-    with open(file_path, "rb") as f:
-        upload_response = requests.put(
-            f"{INVENIO_API_URL}/records/{draft_id}/files/{filename}/content",
-            data=f,
-            headers=get_headers()
-        )
-        upload_response.raise_for_status()
+# @mcp.tool()
+# def upload_file(draft_id: str, file_path: str) -> str:
+#     """Upload a file to an existing draft"""
+#     # 1. Initialize file upload
+#     filename = file_path.split("/")[-1]
+#     init_response = requests.post(
+#         f"{INVENIO_API_URL}/records/{draft_id}/files",
+#         json={"key": filename},
+#         headers=get_headers(),
+#     )
+#     init_response.raise_for_status()
+#
+#     # 2. Upload content
+#     with open(file_path, "rb") as f:
+#         upload_response = requests.put(
+#             f"{INVENIO_API_URL}/records/{draft_id}/files/{filename}/content",
+#             data=f,
+#             headers=get_headers(),
+#         )
+#         upload_response.raise_for_status()
+#
+#     # 3. Commit upload
+#     commit_response = requests.post(
+#         f"{INVENIO_API_URL}/records/{draft_id}/files/{filename}/commit",
+#         headers=get_headers(),
+#     )
+#     commit_response.raise_for_status()
+#
+#     return f"File {filename} uploaded"
 
-    # 3. Commit upload
-    commit_response = requests.post(
-        f"{INVENIO_API_URL}/records/{draft_id}/files/{filename}/commit",
-        headers=get_headers()
-    )
-    commit_response.raise_for_status()
-
-    return f"File {filename} uploaded"
 
 @mcp.tool()
 def publish_draft(draft_id: str) -> str:
-    """Publish a draft"""
+    """Publish a draft."""
     response = requests.post(
         f"{INVENIO_API_URL}/records/{draft_id}/draft/actions/publish",
-        headers=get_headers()
+        headers=get_headers(),
     )
     response.raise_for_status()
-    return f"Draft {draft_id} published"
+    return f"Draft {draft_id} published at {response.json()['links']['self_html']}"
 
+
+if __name__ == "__main__":
+    mcp.run(transport="stdio")
